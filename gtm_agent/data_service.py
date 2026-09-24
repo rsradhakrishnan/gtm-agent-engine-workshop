@@ -12,6 +12,8 @@ from langsmith import traceable
 
 from .gtm_records import OFFERINGS, PROSPECTS, REP_IDS
 
+SENSITIVE_PROSPECT_FIELDS = ("billing_qualification",)
+
 __all__ = [
     "get_offering", "get_prospect_record", "update_prospect_info",
     "fetch_engagement_history", "fetch_account_details", "fetch_tech_stack",
@@ -23,6 +25,10 @@ __all__ = [
 # lookups within a run are served without rebuilding.
 _PROFILES = {}
 
+
+def _redact(record):
+    return {key: value for key, value in record.items() if key not in SENSITIVE_PROSPECT_FIELDS}
+
 # ---------------------------------------------------------------------------
 # Public data-access functions
 # ---------------------------------------------------------------------------
@@ -33,7 +39,8 @@ def get_offering(offering_id):
 
 def get_prospect_record(prospect_id):
     "Return the source prospect record for prospect_id, or None if not found."
-    return PROSPECTS.get(prospect_id)
+    record = PROSPECTS.get(prospect_id)
+    return _redact(record) if record is not None else None
 
 
 def get_rep(rep):
@@ -69,7 +76,7 @@ def get_profile_from_db(prospect_id):
 @traceable(run_type="tool", name="save_profile_to_db")
 def save_profile_to_db(prospect_id, profile):
     "Persist a prospect profile to the profile store."
-    _PROFILES[prospect_id] = profile
+    _PROFILES[prospect_id] = _redact(profile)
     return {"saved": True}
 
 def update_prospect_info(prospect_id, technology):
